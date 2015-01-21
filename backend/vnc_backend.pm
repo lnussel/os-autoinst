@@ -86,9 +86,10 @@ sub select_for_vnc {
 
 sub type_string($$) {
     my ($self, $args) = @_;
+    my @letters = split( "", $args->{text} );
 
     my $s = $self->select_for_vnc();
-    for my $letter (split( "", $args->{text}) ) {
+    for my $letter (@letters) {
         $letter = $self->map_letter($letter);
         $self->{'vnc'}->send_mapped_key($letter);
         $self->wait_for_screen_stall($s);

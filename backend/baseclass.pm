@@ -128,7 +128,6 @@ sub start_vm($) {
     my ($self) = @_;
     $self->{'mouse'} = { 'x' => undef, 'y' => undef };
     $self->{'started'} = 1;
-    $self->init_charmap();
     $self->start_encoder();
     $self->do_start_vm();
 }
@@ -220,59 +219,48 @@ sub cpu_stat($) {
     return [];
 }
 
-sub init_charmap($) {
+# see http://en.wikipedia.org/wiki/IBM_PC_keyboard
+my  %charmap = (
+    # minus is special as it splits key combinations
+    "-"  => "minus",
+    # first line of US layout
+    "~"  => "shift-`",
+    "!"  => "shift-1",
+    "@"  => "shift-2",
+    "#"  => "shift-3",
+    "\$"  => "shift-4",
+    "%"  => "shift-5",
+    "^"  => "shift-6",
+    "&"  => "shift-7",
+    "*"  => "shift-8",
+    "("  => "shift-9",
+    ")"  => "shift-0",
+    "_"  => "shift-minus",
+    "+"  => "shift-=",
 
-    my ($self) = (@_);
+    # second line
+    "{"  => "shift-[",
+    "}"  => "shift-]",
+    "|"  => "shift-\\",
 
-    ## charmap (like L => shift+l)
-    # see http://en.wikipedia.org/wiki/IBM_PC_keyboard
-    $self->{charmap} = {
-        # minus is special as it splits key combinations
-        "-"  => "minus",
-        # first line of US layout
-        "~"  => "shift-`",
-        "!"  => "shift-1",
-        "@"  => "shift-2",
-        "#"  => "shift-3",
-        "\$"  => "shift-4",
-        "%"  => "shift-5",
-        "^"  => "shift-6",
-        "&"  => "shift-7",
-        "*"  => "shift-8",
-        "("  => "shift-9",
-        ")"  => "shift-0",
-        "_"  => "shift-minus",
-        "+"  => "shift-=",
+    # third line
+    ":"  => "shift-;",
+    '"'  => "shift-'",
 
-        # second line
-        "{"  => "shift-[",
-        "}"  => "shift-]",
-        "|"  => "shift-\\",
+    # fourth line
+    "<"  => "shift-,",
+    ">"  => "shift-.",
+    '?'  => "shift-/",
 
-        # third line
-        ":"  => "shift-;",
-        '"'  => "shift-'",
+    "\t" => "tab",
+    "\n" => "ret",
+    "\b" => "backspace",
+);
 
-        # fourth line
-        "<"  => "shift-,",
-        ">"  => "shift-.",
-        '?'  => "shift-/",
-
-        "\t" => "tab",
-        "\n" => "ret",
-        "\b" => "backspace",
-
-        "\e" => "esc"
-    };
-    for my $c ( "A" .. "Z" ) {
-        $self->{charmap}->{$c} = "shift-\L$c";
-    }
-    ## charmap end
-}
 
 sub map_letter($) {
     my ($self, $letter) = @_;
-    return $self->{charmap}->{$letter} if $self->{charmap}->{$letter};
+    return $charmap{$letter} if $charmap{$letter};
     return $letter;
 }
 
@@ -280,14 +268,16 @@ sub type_string($$) {
     my ($self, $string, $maxinterval) = @_;
 
     my $typedchars  = 0;
-    for my $letter (split( "", $string )) {
-        send_key $self->map_letter($letter), 1;
+    my @letters = split( "", $string );
+    while (@letters) {
+        my $letter = $self->map_letter( shift @letters );
+        send_key $letter, 0;
         if ( $typedchars++ >= $maxinterval ) {
-            sleep 2;
+            wait_still_screen(1.6);
             $typedchars = 0;
         }
     }
-    sleep 2 if ( $typedchars > 0 );
+    wait_still_screen(1.6) if ( $typedchars > 0 );
 }
 
 
